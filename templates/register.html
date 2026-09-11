@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="card" id="registerCard">
+  <h1>Create an account</h1>
+  <p class="subtitle">Register to access the dashboard</p>
+
+  <form id="registerForm" novalidate>
+    <label for="full_name">Full name</label>
+    <input type="text" id="full_name" name="full_name" placeholder="Jane Doe" required />
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" placeholder="At least 6 characters" required />
+
+    <div class="captcha-box">
+      <label>Captcha</label>
+      <div class="captcha-row">
+        <span id="captchaQuestion" class="captcha-question">Loading...</span>
+        <button type="button" id="refreshCaptcha" class="link-btn" title="Get a new captcha">&#x21bb;</button>
+      </div>
+      <input type="text" id="captchaAnswer" name="captcha_answer" placeholder="Your answer" required />
+    </div>
+
+    <button type="submit" id="registerBtn">Create account</button>
+  </form>
+
+  <div id="message" class="message" role="alert"></div>
+
+  <p class="footer-link">Already have an account? <a href="/login">Log in</a></p>
+</div>
+
+<script>
+  let currentCaptchaId = null;
+
+  async function loadCaptcha() {
+    document.getElementById("captchaQuestion").textContent = "Loading...";
+    document.getElementById("captchaAnswer").value = "";
+    try {
+      const res = await fetch("/api/captcha");
+      const data = await res.json();
+      currentCaptchaId = data.captcha_id;
+      document.getElementById("captchaQuestion").textContent = data.question;
+    } catch (err) {
+      document.getElementById("captchaQuestion").textContent = "Failed to load captcha";
+    }
+  }
+
+  document.getElementById("refreshCaptcha").addEventListener("click", loadCaptcha);
+  loadCaptcha();
+
+  const form = document.getElementById("registerForm");
+  const messageEl = document.getElementById("message");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    messageEl.textContent = "";
+    messageEl.className = "message";
+
+    const payload = {
+      full_name: document.getElementById("full_name").value,
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+      captcha_id: currentCaptchaId,
+      captcha_answer: document.getElementById("captchaAnswer").value,
+    };
+
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        messageEl.textContent = "Account created! Redirecting to login...";
+        messageEl.classList.add("success");
+        setTimeout(() => (window.location.href = "/login"), 1200);
+      } else {
+        messageEl.textContent = data.error || "Registration failed.";
+        messageEl.classList.add("error");
+        loadCaptcha(); // captcha is single-use; always refresh after a failed/used attempt
+      }
+    } catch (err) {
+      messageEl.textContent = "Network error. Please try again.";
+      messageEl.classList.add("error");
+      loadCaptcha();
+    }
+  });
+</script>
+{% endblock %}

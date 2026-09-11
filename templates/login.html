@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="card" id="loginCard">
+  <h1>Welcome back</h1>
+  <p class="subtitle">Log in to your account</p>
+
+  <form id="loginForm" novalidate>
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" placeholder="Your password" required />
+
+    <div class="captcha-box">
+      <label>Captcha</label>
+      <div class="captcha-row">
+        <span id="captchaQuestion" class="captcha-question">Loading...</span>
+        <button type="button" id="refreshCaptcha" class="link-btn" title="Get a new captcha">&#x21bb;</button>
+      </div>
+      <input type="text" id="captchaAnswer" name="captcha_answer" placeholder="Your answer" required />
+    </div>
+
+    <button type="submit" id="loginBtn">Log in</button>
+  </form>
+
+  <div id="message" class="message" role="alert"></div>
+
+  <p class="footer-link"><a href="/forgot-password">Forgot password?</a></p>
+  <p class="footer-link">Don't have an account? <a href="/register">Register</a></p>
+</div>
+
+<script>
+  let currentCaptchaId = null;
+
+  async function loadCaptcha() {
+    document.getElementById("captchaQuestion").textContent = "Loading...";
+    document.getElementById("captchaAnswer").value = "";
+    try {
+      const res = await fetch("/api/captcha");
+      const data = await res.json();
+      currentCaptchaId = data.captcha_id;
+      document.getElementById("captchaQuestion").textContent = data.question;
+    } catch (err) {
+      document.getElementById("captchaQuestion").textContent = "Failed to load captcha";
+    }
+  }
+
+  document.getElementById("refreshCaptcha").addEventListener("click", loadCaptcha);
+  loadCaptcha();
+
+  const form = document.getElementById("loginForm");
+  const messageEl = document.getElementById("message");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    messageEl.textContent = "";
+    messageEl.className = "message";
+
+    const payload = {
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+      captcha_id: currentCaptchaId,
+      captcha_answer: document.getElementById("captchaAnswer").value,
+    };
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        messageEl.textContent = "Login successful! Redirecting...";
+        messageEl.classList.add("success");
+        setTimeout(() => (window.location.href = data.redirect || "/dashboard"), 800);
+      } else {
+        messageEl.textContent = data.error || "Login failed.";
+        messageEl.classList.add("error");
+        loadCaptcha();
+      }
+    } catch (err) {
+      messageEl.textContent = "Network error. Please try again.";
+      messageEl.classList.add("error");
+      loadCaptcha();
+    }
+  });
+</script>
+{% endblock %}

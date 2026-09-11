@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="card wide" id="dashboardCard">
+  <div class="dashboard-header">
+    <h1>Dashboard</h1>
+    <button id="logoutBtn" class="secondary-btn">Log out</button>
+  </div>
+
+  <div id="profileBox" class="profile-box">Loading profile...</div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Account status</div>
+      <div class="stat-value">Active</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Member since</div>
+      <div class="stat-value" id="memberSince">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">User ID</div>
+      <div class="stat-value" id="userId">--</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadProfile() {
+    const box = document.getElementById("profileBox");
+    try {
+      const res = await fetch("/api/profile");
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        const u = data.user;
+        box.innerHTML = `<strong>${u.full_name}</strong><br/>${u.email}`;
+        document.getElementById("memberSince").textContent = u.created_at.split("T")[0];
+        document.getElementById("userId").textContent = u.id;
+      } else {
+        window.location.href = "/login";
+      }
+    } catch (err) {
+      box.textContent = "Failed to load profile.";
+    }
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await fetch("/api/logout", { method: "POST" });
+    window.location.href = "/login";
+  });
+
+  loadProfile();
+</script>
+{% endblock %}
